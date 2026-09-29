@@ -60,10 +60,10 @@ export default function App() {
 
   // Presets
   const PRESETS = [
+    "when a button is clicked, turn on leds in this order each after another and after the delay of 1 seconds, order: red,green,blue",
     "If button is held for 3 seconds, buzz 2 times",
     "Flash red LED 3 times when button is pressed",
-    "Turn on green LED when button is pressed",
-    "Flash blue LED 2 times when button is held for 2 seconds"
+    "Turn on green LED when button is pressed"
   ];
 
   // Fetch rules from backend
@@ -206,13 +206,31 @@ export default function App() {
   const triggerActuators = (action) => {
     if (!action) return;
 
-    const { type, times = 1, led } = action;
+    const { type, times = 1, led, sequence, delay_seconds = 1 } = action;
 
     if (type === 'buzz') {
       setIsBuzzing(true);
       setBuzzerCount(times);
       playBuzzerSound(times);
       setTimeout(() => setIsBuzzing(false), times * 300 + 100);
+    }
+
+    if (type === 'sequence' && Array.isArray(sequence) && sequence.length > 0) {
+      const delayMs = (delay_seconds || 1) * 1000;
+      sequence.forEach((color, idx) => {
+        setTimeout(() => {
+          const cleanColor = color.trim().toLowerCase();
+          const validLed = ['red', 'green', 'blue'].includes(cleanColor) ? cleanColor : 'red';
+          setActiveLed(validLed);
+
+          // Turn off LED after delay or at sequence end
+          setTimeout(() => {
+            if (idx === sequence.length - 1) {
+              setActiveLed(null);
+            }
+          }, delayMs - 100);
+        }, idx * delayMs);
+      });
     }
 
     if (type === 'flash' || type === 'led_on') {

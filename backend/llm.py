@@ -10,8 +10,10 @@ def english_to_rule(sentence: str) -> RuleData:
     resp = client.models.generate_content(
         model="gemini-3.5-flash-lite",
         contents=(
-            "Convert this rule into JSON matching the schema. "
-            f"Rule: \"{sentence}\""
+            "Convert the user's natural language automation instruction into a structured JSON rule matching the schema. "
+            "If the instruction specifies lighting LEDs in an order/sequence or step-by-step with a delay (e.g. 'order: red, green, blue after 1 second delay'), "
+            "set action.type to 'sequence', populate action.sequence with the list of LED colors (e.g., ['red', 'green', 'blue']), and set action.delay_seconds. "
+            f"Rule instruction: \"{sentence}\""
         ),
         config={
             "response_mime_type": "application/json",
