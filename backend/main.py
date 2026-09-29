@@ -57,20 +57,29 @@ def delete_rule(rule_id: int):
 @app.post("/event")
 def receive_event(event: EventIn):
     db = SessionLocal()
-    rules = db.query(RuleRow).filter(RuleRow.enabled == True).all()
 
     matched = None
-    for r in rules:
-        rule = json.loads(r.rule_json)
-        if rule["trigger"] != event.trigger:
-            continue
-        if rule["trigger"] == "button_held":
-            if event.duration_seconds is not None and event.duration_seconds >= (rule.get("duration_seconds") or 0):
+    
+    # 1. Targeted Rule Execution: If a specific rule_id is requested, execute that rule
+    if event.rule_id is not None:
+        row = db.query(RuleRow).filter(RuleRow.id == event.rule_id, RuleRow.enabled == True).first()
+        if row:
+            rule = json.loads(row.rule_json)
+            matched = (row.id, rule)
+    else:
+        # 2. Dynamic Rule Matching: Order active rules in reverse chronological order (newest first)
+        rules = db.query(RuleRow).filter(RuleRow.enabled == True).order_by(RuleRow.id.desc()).all()
+        for r in rules:
+            rule = json.loads(r.rule_json)
+            if rule.get("trigger") != event.trigger:
+                continue
+            if rule.get("trigger") == "button_held":
+                if event.duration_seconds is not None and event.duration_seconds >= (rule.get("duration_seconds") or 0):
+                    matched = (r.id, rule)
+                    break
+            else:
                 matched = (r.id, rule)
                 break
-        else:
-            matched = (r.id, rule)
-            break
 
     ev_row = EventRow(
         trigger=event.trigger,

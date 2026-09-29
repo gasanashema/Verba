@@ -130,6 +130,8 @@ void sendVerbaEvent(String triggerType, float durationSeconds) {
   if (durationSeconds > 0) {
     reqDoc["duration_seconds"] = durationSeconds;
   }
+  // Optional: Specify a target rule_id if you want to force execution of a specific rule
+  // reqDoc["rule_id"] = 3;
 
   String requestBody;
   serializeJson(reqDoc, requestBody);

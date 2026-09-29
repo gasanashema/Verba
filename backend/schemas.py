@@ -22,5 +22,6 @@ class RuleCreate(BaseModel):
 
 class EventIn(BaseModel):
     trigger: str
+    rule_id: Optional[int] = None   # optional target rule ID to execute
     duration_seconds: Optional[float] = None
     sensor_value: Optional[Any] = None

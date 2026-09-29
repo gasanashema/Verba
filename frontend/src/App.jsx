@@ -29,6 +29,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [rules, setRules] = useState([]);
+  const [selectedRuleId, setSelectedRuleId] = useState(null); // null means auto/newest rule matching
   const [backendStatus, setBackendStatus] = useState('checking'); // 'connected' | 'disconnected'
   const [lastGeneratedRule, setLastGeneratedRule] = useState(null);
 
@@ -168,9 +169,14 @@ export default function App() {
   };
 
   // Trigger Hardware Event to Backend
-  const handleSendEvent = async (trigger, duration = null) => {
+  const handleSendEvent = async (trigger, duration = null, overrideRuleId = undefined) => {
     setSimulating(true);
-    const eventPayload = { trigger, duration_seconds: duration };
+    const targetRuleId = overrideRuleId !== undefined ? overrideRuleId : selectedRuleId;
+    const eventPayload = { 
+      trigger, 
+      duration_seconds: duration,
+      ...(targetRuleId ? { rule_id: targetRuleId } : {})
+    };
 
     try {
       const res = await fetch(`${API_BASE}/event`, {
@@ -541,57 +547,114 @@ export default function App() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
-                {rules.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.07)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px'
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc' }}>
-                          Rule #{item.id}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee' }}>
-                          Trigger: {item.rule.trigger} {item.rule.duration_seconds ? `(≥${item.rule.duration_seconds}s)` : ''}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '0.92rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                        "{item.sentence}"
-                      </p>
-                      <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', gap: '12px' }}>
-                        <span>⚡ Action: <strong>{item.rule.action.type}</strong> ({item.rule.action.times}x)</span>
-                        {item.rule.action.led && <span>🔴 LED: <strong>{item.rule.action.led}</strong></span>}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleDeleteRule(item.id)}
-                      title="Delete Rule"
+                {rules.map((item) => {
+                  const isSelected = selectedRuleId === item.id;
+                  return (
+                    <div
+                      key={item.id}
                       style={{
-                        background: 'rgba(244, 63, 94, 0.1)',
-                        border: '1px solid rgba(244, 63, 94, 0.2)',
-                        color: '#fb7185',
-                        borderRadius: '8px',
-                        padding: '8px',
-                        cursor: 'pointer',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        background: isSelected ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                        border: isSelected ? '2px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.07)',
+                        boxShadow: isSelected ? '0 0 15px rgba(139, 92, 246, 0.25)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
                         transition: 'all 0.2s ease'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.25)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.1)'}
                     >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(139, 92, 246, 0.2)', color: '#c084fc' }}>
+                            Rule #{item.id}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee' }}>
+                            Trigger: {item.rule.trigger} {item.rule.duration_seconds ? `(≥${item.rule.duration_seconds}s)` : ''}
+                          </span>
+                          {isSelected && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}>
+                              ✓ SELECTED TARGET
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '0.92rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                          "{item.sentence}"
+                        </p>
+                        <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>⚡ Action: <strong>{item.rule.action.type}</strong></span>
+                          {item.rule.action.sequence && (
+                            <span>🌈 Sequence: <strong>{item.rule.action.sequence.join(' → ')}</strong> ({item.rule.action.delay_seconds || 1}s delay)</span>
+                          )}
+                          {item.rule.action.led && <span>🔴 LED: <strong>{item.rule.action.led}</strong></span>}
+                        </div>
+                      </div>
+
+                      {/* Rule Action Buttons */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {/* Run Rule Instantly Button */}
+                        <button
+                          onClick={() => handleSendEvent(item.rule.trigger, item.rule.duration_seconds || null, item.id)}
+                          title="Run this rule now on simulator"
+                          style={{
+                            background: 'var(--primary-gradient)',
+                            border: 'none',
+                            color: 'white',
+                            fontWeight: 600,
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+                          }}
+                        >
+                          <Play size={14} /> Run
+                        </button>
+
+                        {/* Toggle Target Selection */}
+                        <button
+                          onClick={() => setSelectedRuleId(isSelected ? null : item.id)}
+                          title={isSelected ? "Deselect Target Rule" : "Set as Target Rule for Hardware Trigger"}
+                          style={{
+                            background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                            border: isSelected ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.15)',
+                            color: isSelected ? '#34d399' : 'var(--text-secondary)',
+                            borderRadius: '8px',
+                            padding: '8px 10px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {isSelected ? 'Targeted' : 'Select'}
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={() => handleDeleteRule(item.id)}
+                          title="Delete Rule"
+                          style={{
+                            background: 'rgba(244, 63, 94, 0.1)',
+                            border: '1px solid rgba(244, 63, 94, 0.2)',
+                            color: '#fb7185',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.25)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.1)'}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -707,9 +770,38 @@ export default function App() {
 
               {/* Hardware Input Buttons */}
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '12px', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Hardware Event Triggers:
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Hardware Event Triggers:
+                  </span>
+
+                  {/* Target Rule Dropdown */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 600 }}>Target Rule:</span>
+                    <select
+                      value={selectedRuleId || ''}
+                      onChange={(e) => setSelectedRuleId(e.target.value ? Number(e.target.value) : null)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        border: '1px solid rgba(139, 92, 246, 0.4)',
+                        color: '#e2e8f0',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">✨ Auto (Newest Rule Matching)</option>
+                      {rules.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          Rule #{r.id}: "{r.sentence.length > 35 ? r.sentence.slice(0, 35) + '...' : r.sentence}"
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   {/* Push Button Trigger */}
