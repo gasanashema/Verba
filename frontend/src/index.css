@@ -179,6 +179,25 @@ h1, h2, h3, h4, h5, h6 {
   cursor: not-allowed;
 }
 
+/* Microphone Pulse Animation */
+@keyframes mic-wave {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+.mic-btn-active {
+  background: var(--rose-gradient) !important;
+  color: white !important;
+  animation: mic-wave 1.5s infinite;
+}
+
 /* Code Preview */
 pre, code {
   font-family: var(--font-code);

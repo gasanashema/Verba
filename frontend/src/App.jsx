@@ -15,8 +15,11 @@ import {
   Power,
   Volume2,
   Terminal,
-  Activity
+  Activity,
+  Mic,
+  MicOff
 } from 'lucide-react';
+import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -28,6 +31,22 @@ export default function App() {
   const [rules, setRules] = useState([]);
   const [backendStatus, setBackendStatus] = useState('checking'); // 'connected' | 'disconnected'
   const [lastGeneratedRule, setLastGeneratedRule] = useState(null);
+
+  // Speech Recognition Hook
+  const {
+    isListening,
+    transcript,
+    error: speechError,
+    isSupported: isSpeechSupported,
+    toggleListening
+  } = useSpeechRecognition();
+
+  // Sync spoken transcript to input field
+  useEffect(() => {
+    if (transcript) {
+      setSentence(transcript);
+    }
+  }, [transcript]);
 
   // Hardware Simulation States
   const [eventLogs, setEventLogs] = useState([]);
@@ -300,27 +319,98 @@ export default function App() {
             </p>
 
             <form onSubmit={handleCreateRule} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
                   type="text"
                   value={sentence}
                   onChange={(e) => setSentence(e.target.value)}
-                  placeholder="e.g. If button is held for 3 seconds, buzz 2 times"
+                  placeholder={isListening ? "Listening... Speak your rule now" : "e.g. Speak or type: If button is held for 3 seconds, buzz 2 times"}
                   style={{
                     width: '100%',
-                    padding: '14px 16px',
+                    padding: '14px 48px 14px 16px',
                     borderRadius: '12px',
                     background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    border: isListening ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: 'white',
                     fontSize: '0.95rem',
                     outline: 'none',
                     transition: 'all 0.2s ease'
                   }}
-                  onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)'}
+                  onFocus={(e) => {
+                    if (!isListening) e.target.style.borderColor = '#8b5cf6';
+                  }}
+                  onBlur={(e) => {
+                    if (!isListening) e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  }}
                 />
+
+                {isSpeechSupported && (
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className={isListening ? 'mic-btn-active' : ''}
+                    title={isListening ? 'Stop Listening' : 'Click to Speak (Voice Input)'}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: isListening ? 'var(--rose-gradient)' : 'rgba(255, 255, 255, 0.08)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isListening ? '0 0 12px rgba(244, 63, 94, 0.6)' : 'none'
+                    }}
+                  >
+                    {isListening ? <MicOff size={18} color="#ffffff" /> : <Mic size={18} color="#a855f7" />}
+                  </button>
+                )}
               </div>
+
+              {/* Live Listening Indicator Badge */}
+              {isListening && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(244, 63, 94, 0.12)',
+                  border: '1px solid rgba(244, 63, 94, 0.3)',
+                  color: '#fb7185',
+                  fontSize: '0.82rem',
+                  fontWeight: 600
+                }}>
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#f43f5e',
+                    boxShadow: '0 0 10px #f43f5e',
+                    animation: 'pulse-red 0.6s infinite alternate'
+                  }} />
+                  <span>🎙️ Voice Recognition Active... Speak your rule aloud!</span>
+                </div>
+              )}
+
+              {/* Speech Error Warning */}
+              {speechError && (
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: '#fbbf24',
+                  fontSize: '0.82rem'
+                }}>
+                  ⚠️ {speechError}
+                </div>
+              )}
 
               {/* Preset Chips */}
               <div>
